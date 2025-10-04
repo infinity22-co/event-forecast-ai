@@ -1,1 +1,4 @@
 project_id = "sxefytzgegeiqwuzneox"
+
+[functions.analyze-weather]
+verify_jwt = true
