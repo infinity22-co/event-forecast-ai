@@ -33,8 +33,10 @@ serve(async (req) => {
     
     Status meanings:
     - favorable: Weather is good, event can proceed without concerns
-    - caution: Weather is okay but requires precautions
+    - caution: Weather is manageable but requires specific precautions - ALWAYS provide detailed precautions array
     - unfavorable: Weather is poor, recommend postponing or changing date
+    
+    IMPORTANT: When status is "caution", you MUST provide at least 3-5 specific, actionable precautions.
     `;
 
     const userPrompt = `Analyze the weather conditions for the following event:

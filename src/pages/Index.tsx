@@ -23,8 +23,51 @@ const Index = () => {
   const [analysis, setAnalysis] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const handleGetLocation = async () => {
+    if (!navigator.geolocation) {
+      toast({
+        title: "Geolocation Not Supported",
+        description: "Your browser doesn't support location services.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoadingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          // Reverse geocode to get location name
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${position.coords.latitude}&lon=${position.coords.longitude}&format=json`
+          );
+          const data = await response.json();
+          const locationName = data.display_name || `${position.coords.latitude}, ${position.coords.longitude}`;
+          setLocation(locationName);
+          toast({
+            title: "Location Captured",
+            description: "Your current location has been set.",
+          });
+        } catch (error) {
+          setLocation(`${position.coords.latitude}, ${position.coords.longitude}`);
+        } finally {
+          setIsLoadingLocation(false);
+        }
+      },
+      (error) => {
+        toast({
+          title: "Location Access Denied",
+          description: "Please allow location access or enter manually.",
+          variant: "destructive",
+        });
+        setIsLoadingLocation(false);
+      }
+    );
+  };
 
   const handleAnalyze = async () => {
     if (!eventName || !eventType || !eventDate || !location) {
@@ -51,22 +94,6 @@ const Index = () => {
 
       setAnalysis(data.analysis);
 
-      // Save to database
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from('events').insert({
-          user_id: user.id,
-          event_name: eventName,
-          event_type: eventType,
-          event_date: format(eventDate, 'yyyy-MM-dd'),
-          location,
-          weather_analysis: data.analysis,
-          recommendation: data.analysis.recommendation,
-          precautions: data.analysis.precautions,
-          status: data.analysis.status,
-        });
-      }
-
       toast({
         title: "Analysis Complete!",
         description: "Your event weather analysis is ready.",
@@ -79,6 +106,45 @@ const Index = () => {
       });
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const handleConfirmEvent = async () => {
+    if (!analysis) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('events').insert({
+          user_id: user.id,
+          event_name: eventName,
+          event_type: eventType,
+          event_date: format(eventDate!, 'yyyy-MM-dd'),
+          location,
+          weather_analysis: analysis,
+          recommendation: analysis.recommendation,
+          precautions: analysis.precautions || [],
+          status: analysis.status,
+        });
+
+        toast({
+          title: "Event Confirmed!",
+          description: "Your event has been saved to your history.",
+        });
+
+        // Reset form
+        setEventName("");
+        setEventType("");
+        setEventDate(undefined);
+        setLocation("");
+        setAnalysis(null);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Failed to Save Event",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -168,13 +234,24 @@ const Index = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="location">Location</Label>
-                <Input
-                  id="location"
-                  placeholder="e.g., New York, Central Park"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="border-primary/30 focus:border-primary"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="location"
+                    placeholder="e.g., New York, Central Park"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    className="border-primary/30 focus:border-primary flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleGetLocation}
+                    disabled={isLoadingLocation}
+                    className="border-primary/30"
+                  >
+                    {isLoadingLocation ? "Getting..." : "📍"}
+                  </Button>
+                </div>
               </div>
 
               <Button
@@ -200,7 +277,13 @@ const Index = () => {
 
           {/* Analysis Results */}
           <div className="space-y-8">
-            {analysis && <EventAnalysis analysis={analysis} />}
+            {analysis && (
+              <EventAnalysis 
+                analysis={analysis} 
+                onConfirm={handleConfirmEvent}
+                eventName={eventName}
+              />
+            )}
             <EventHistory />
           </div>
         </div>
