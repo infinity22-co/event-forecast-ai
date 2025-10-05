@@ -163,7 +163,7 @@ const Index = () => {
               <CloudSun className="w-20 h-20 text-primary animate-pulse" />
             </div>
             <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
-              Weather Wise Events
+              weathery
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               AI-powered weather analysis for perfect event planning
